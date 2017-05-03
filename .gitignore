@@ -1,3 +1,10 @@
+*~
+
+# env.sh contains secrets, tokens, etc.
+
+env.sh
+
+
 *.gem
 *.rbc
 /.config
