@@ -20,6 +20,10 @@ end.parse!
 
 puts "Hello Spike"
 
+Octokit.configure do |c|
+  c.api_endpoint = "https://github.ucsb.edu/api/v3/"
+end
+
 client = Octokit::Client.new(:access_token => ENV["GITHUB_PERSONAL_ACCESS_TOKEN"])
 user = client.user
 puts user.login
