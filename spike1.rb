@@ -18,13 +18,19 @@ end.parse!
 
 # This items should be the same for all students
 
-puts "Hello Spike"
 if !options[:com]
 	Octokit.configure do |c|
 	  c.api_endpoint = "https://github.ucsb.edu/api/v3/"
 	end
 end
 
-client = Octokit::Client.new(:access_token => ENV["GITHUB_PERSONAL_ACCESS_TOKEN"])
+if ENV["GITHUB_PERSONAL_ACCESS_TOKEN"]
+	token = ENV["GITHUB_PERSONAL_ACCESS_TOKEN"]
+else
+	puts "Looks like you forgot to do '. env.sh'"
+	exit
+end
+
+client = Octokit::Client.new(:access_token => token)
 user = client.user
 puts user.login
