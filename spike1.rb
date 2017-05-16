@@ -2,7 +2,7 @@
 
 require 'optparse'
 require 'octokit'
-include Octokit
+require 'logger'
 
 require 'json'
 
@@ -48,11 +48,11 @@ def process_course(course_json, client)
 
 	for project in course_info["projects"]
 
+
 		proj_name = project["name"]
 		proj_repo_fullname =  "#{org_name}/#{proj_name}"
 
 		existed  = true
-
 		begin 
 			proj_repo = client.repo(proj_repo_fullname)
 		rescue
@@ -64,9 +64,25 @@ def process_course(course_json, client)
 				:organization => org_name,
 				:private => true # change this to true when we know that private repos are feasible.
 			} )			
-			puts "Created repo " + project["name"]
+			puts "Created repo " + proj_name + "."
+			proj_repo = client.repo(proj_repo_fullname)
 		else
-			puts project["name"] + " already exists."
+			puts proj_name + " already exists."
+		end
+
+		begin
+			spec = client.contents( proj_repo_fullname,
+				:path => ".anacapa/assignment_spec.json"
+				)
+			spec = JSON.parse(Base64.decode64(spec.content))
+		rescue 
+			spec = {}
+		end
+
+		if spec.empty?
+			puts "empty"
+		else
+			puts "NOT empty"
 		end
 
 	end
@@ -76,6 +92,8 @@ def process_course(course_json, client)
 	# e.g. lab00 or lab01 => 
 	# if doesn't exist create it.
 	# For each of those repos see if there is a folder .anacapa/assignment_spec.json
+
+
 	
 end
 
