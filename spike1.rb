@@ -12,7 +12,6 @@ require 'json'
 # https://github.com/project-anacapa/course-github-org-tool/blob/development/app/controllers/assignments_controller.rb
 
 
-
 # This will hold the options we parse
 options = {}
 
@@ -21,9 +20,11 @@ course_json = %{
 	{
 		"org_name" : "clholoien-testorg-1",
 		"projects":[
-			{"name" : "lab00"},
+			{"name" : "lab22"},
 			{"name" : "lab01"},
-			{"name" : "lab02"}
+			{"name" : "lab02", "type" : "string" },
+			{"name" : "lab03"},
+			{"name" : "lab04"}
 		]
 	}
 }
@@ -31,61 +32,7 @@ course_json = %{
 
 def process_course(course_json, client)
 
-	user = client.user
-	course_info = JSON.parse(course_json)
-
 	# See whether course_info["org_name"] is an organization that user has access to.
-	org_name = course_info["org_name"]
-
-	user_in_org = true
-
-	# Check if user has access to this organization.
-	if client.organization_member?(org_name, user.login)
-		puts "User is part of the organization - " + org_name
-	else
-		puts "User is NOT part of the organization - " + org_name
-	end
-
-	for project in course_info["projects"]
-
-
-		proj_name = project["name"]
-		proj_repo_fullname =  "#{org_name}/#{proj_name}"
-
-		existed  = true
-		begin 
-			proj_repo = client.repo(proj_repo_fullname)
-		rescue
-			existed = false
-		end
-
-		if ! existed	
-			client.create_repository( proj_name , {  
-				:organization => org_name,
-				:private => true # change this to true when we know that private repos are feasible.
-			} )			
-			puts "Created repo " + proj_name + "."
-			proj_repo = client.repo(proj_repo_fullname)
-		else
-			puts proj_name + " already exists."
-		end
-
-		begin
-			spec = client.contents( proj_repo_fullname,
-				:path => ".anacapa/assignment_spec.json"
-				)
-			spec = JSON.parse(Base64.decode64(spec.content))
-		rescue 
-			spec = {}
-		end
-
-		if spec.empty?
-			puts "empty"
-		else
-			puts "NOT empty"
-		end
-
-	end
 
 	# For each of the projects, determine if there already exists a project with this particular name.
 
@@ -93,14 +40,105 @@ def process_course(course_json, client)
 	# if doesn't exist create it.
 	# For each of those repos see if there is a folder .anacapa/assignment_spec.json
 
+	user = client.user
+	puts user.login
+	course_info = JSON.parse(course_json)
 
-	
+	org_name = course_info["org_name"]
+
+	user_in_org = true
+
+	if client.organization_member?(org_name, user.login)
+		puts "User IS part of the organization - " + org_name
+	else
+		puts "User is NOT part of the organization - " + org_name
+	end
+
+	for project in course_info["projects"]
+
+		proj_repo_fullname =  "#{org_name}/#{project["name"]}"
+
+		if ! does_exist( client, proj_repo_fullname )	
+
+			client.create_repository( proj_name , {  
+				:organization => org_name,
+				:private => true
+			} )			
+			puts "Created repo " + project["name"] + "."
+		else
+			puts project["name"] + " already exists."
+		end
+
+		spec_json, spec_sha = get_spec(client, proj_repo_fullname)
+		puts JSON.pretty_generate(spec_json)
+
+		if spec_json == {}
+			puts "Creating assignment_spec.json file"
+			init_proj_spec(client, proj_repo_fullname, project)
+		else
+			puts "Updating assignment_spec.json"
+			update_proj_spec(client, proj_repo_fullname, project, spec_sha)
+		end
+
+		spec_json, spec_sha = get_spec(client, proj_repo_fullname)
+		puts JSON.pretty_generate(spec_json)
+		
+	end
 end
 
 
-# def create_project(user, project_name)
+def does_exist(client, proj_repo_fullname)
+	existed  = true
+	begin 
+		proj_repo = client.repo(proj_repo_fullname)
+	rescue
+		existed = false
+	end
+	return existed
+end
 
-# end
+
+def get_spec(client, proj_repo_fullname)
+	begin
+		spec = client.contents( proj_repo_fullname,
+			:path => ".anacapa/assignment_spec.json"
+			)
+		return JSON.parse(Base64.decode64(spec.content)), spec.sha
+	rescue 
+		return {}
+	end
+end
+
+
+def init_proj_spec(client, proj_repo_fullname, proj_json)
+
+	File.open("bin/assignment_spec.json", "w") do |file|
+    	file.puts JSON.pretty_generate(proj_json)
+  	end
+
+  	client.create_contents( 
+  		proj_repo_fullname, 
+		".anacapa/assignment_spec.json", 
+		"Add Assignment_Spec JSON File to each project repo.",{
+			:file => "bin/assignment_spec.json"
+		} )
+end
+
+
+def update_proj_spec(client, proj_repo_fullname, proj_json, sha)
+
+	File.open("bin/assignment_spec.json", "w") do |file|
+    	file.puts JSON.pretty_generate(proj_json)
+  	end
+
+	client.update_contents( 
+		proj_repo_fullname, 
+		".anacapa/assignment_spec.json", 
+		"Update Assignment_Spec JSON File to each project repo.",
+		sha, {
+			:file => "bin/assignment_spec.json"
+		} )
+end
 
 
 options[:count]=1
