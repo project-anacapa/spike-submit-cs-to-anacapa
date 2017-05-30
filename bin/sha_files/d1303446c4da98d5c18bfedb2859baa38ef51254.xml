@@ -1,0 +1,26 @@
+
+CXXFLAGS=-g -std=c++11
+
+all: debugProgram segProgram
+
+runtests: debugProgram segProgram
+	./segProgram `cat user`
+	./debugProgram `cat user`
+	cp q* ../execution_files	
+	
+debugProgram: main.o
+	$(CXX) $^ -o $@
+
+segProgram: mainSeg.o
+	$(CXX) $^ -o $@
+
+main.o: main.cpp
+	$(CXX) -c $< -std=c++11
+
+mainSeg.o: mainSeg.cpp
+	$(CXX) -c $< -std=c++11
+
+clean:
+	rm -rf segProgram debugProgram *.o
+
+.PHONY: clean all

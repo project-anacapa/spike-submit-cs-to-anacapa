@@ -1,0 +1,22 @@
+
+(^-^) signifies output was removed that normally varies between submissions
+
+Buildfile: /tmp/tmp(^-^)/build-tests.xml
+
+compile:
+    [mkdir] Created dir: /tmp/tmp(^-^)/build/classes
+    [javac] Compiling (^-^) source files to /tmp/tmp(^-^)/build/classes
+
+test_tokenizer_given:
+    [junit] Testsuite: edu.ucsb.cs56.pconrad.parsing.tokenizer.TestArithmeticTokenizerGiven
+    [junit] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: (^-^)
+    [junit] 
+    [junit] Testcase: testTwoDigit took (^-^) sec
+    [junit] Testcase: testOneToken took (^-^) sec
+    [junit] Testcase: testTwoSameTokens took (^-^) sec
+    [junit] Testcase: testInvalidSingleToken took (^-^) sec
+    [junit] Testcase: testSingleDigit took (^-^) sec
+    [junit] Testcase: testSingleWhitespace took (^-^) sec
+
+BUILD SUCCESSFUL
+Total time: (^-^)

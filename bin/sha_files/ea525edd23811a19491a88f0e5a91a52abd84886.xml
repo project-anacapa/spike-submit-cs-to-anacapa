@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+run_ant_no_timing()
+{
+ant $@  | sed -e 's/, Time elapsed: [0-9\*].[0-9]* sec/, Time elapsed: (^-^)/g' | \
+           sed -e 's/took [0-9\.]* sec/took (^-^) sec/g' | \
+           sed -e 's/Total time: [0-9]* second[s]*/Total time: (^-^)/g' |
+           sed -e 's|submission/[A-Za-z0-9_-]*/build|build|g' |
+           sed -e 's|/tmp/tmp[A-Za-z0-9_-]*/|/tmp/tmp(^-^)/|g' |
+           sed -e 's|Compiling [0-9]* source files|Compiling (^-^) source files|g' |
+	   sed -e 's|/submission/[A-Za-z0-9_-]*/temp.d|/submission/(^-^)/temp.d|g' 
+}
+
+
+
+run_command_output_on_fail_only()
+{
+#send stdout and stderr from command to stderr ONLY if non-zero status
+if $1 1> command.stdout 2> command.stderr; then
+    :  # do nothing
+else
+    # The >&2 prefix redirects stdout to stderr
+    # The test case should check that stderr is "empty"
+    cat command.stdout
+    cat command.stderr
+fi
+rm command.stdout
+rm command.stderr
+}
+
+echo
+echo "(^-^) signifies output was removed that normally varies between submissions"
+echo
+rm -rf submission
+mkdir -p submission
+run_command_output_on_fail_only "unzip  -d submission lab06.zip"
+
+cd submission/*lab06*
+
+cp ../../build-tests.xml .
+cp ../../interpreter-tests.zip .
+unzip -qo interpreter-tests.zip
+
+# warning about timestamps cannot be suppressed
+find . -name '*.java' | xargs touch
+
+run_ant_no_timing $@

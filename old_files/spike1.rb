@@ -3,8 +3,10 @@
 require 'optparse'
 require 'octokit'
 require 'logger'
-
 require 'json'
+require 'date'
+require 'modifySpec'
+
 
 
 
@@ -20,7 +22,7 @@ course_json = %{
 	{
 		"org_name" : "clholoien-testorg-1",
 		"projects":[
-			{"name" : "lab22"},
+			{"name" : "lab24"},
 			{"name" : "lab01"},
 			{"name" : "lab02", "type" : "string" },
 			{"name" : "lab03"},
@@ -30,7 +32,18 @@ course_json = %{
 }
 
 
-def process_course(course_json, client)
+
+def Add_Expected_Output()
+
+end
+
+
+def Add_Build_Files()
+
+end
+
+
+def Process_Course(org_name, course_info, client)
 
 	# See whether course_info["org_name"] is an organization that user has access to.
 
@@ -42,9 +55,10 @@ def process_course(course_json, client)
 
 	user = client.user
 	puts user.login
-	course_info = JSON.parse(course_json)
+	# course_info = JSON.parse(course_json)
 
-	org_name = course_info["org_name"]
+	# org_name = course_info["name"]
+	# org_name = "clholoien-testorg-1"
 
 	user_in_org = true
 
@@ -54,13 +68,15 @@ def process_course(course_json, client)
 		puts "User is NOT part of the organization - " + org_name
 	end
 
+	proj_num = 0
 	for project in course_info["projects"]
+
 
 		proj_repo_fullname =  "#{org_name}/#{project["name"]}"
 
-		if ! does_exist( client, proj_repo_fullname )	
+		if ! Does_Exist( client, proj_repo_fullname )	
 
-			client.create_repository( proj_name , {  
+			client.create_repository( project["name"] , {  
 				:organization => org_name,
 				:private => true
 			} )			
@@ -69,25 +85,25 @@ def process_course(course_json, client)
 			puts project["name"] + " already exists."
 		end
 
-		spec_json, spec_sha = get_spec(client, proj_repo_fullname)
+		spec_json, spec_sha = Get_Spec(client, proj_repo_fullname)
 		puts JSON.pretty_generate(spec_json)
 
 		if spec_json == {}
-			puts "Creating assignment_spec.json file"
-			init_proj_spec(client, proj_repo_fullname, project)
+			puts "Creating assignment_spec.json"
+			Init_Proj_Spec(client, proj_repo_fullname, project)
 		else
 			puts "Updating assignment_spec.json"
-			update_proj_spec(client, proj_repo_fullname, project, spec_sha)
+			Update_Proj_Spec(client, proj_repo_fullname, project, spec_sha)
 		end
 
-		spec_json, spec_sha = get_spec(client, proj_repo_fullname)
+		spec_json, spec_sha = Get_Spec(client, proj_repo_fullname)
 		puts JSON.pretty_generate(spec_json)
 		
 	end
 end
 
 
-def does_exist(client, proj_repo_fullname)
+def Does_Exist(client, proj_repo_fullname)
 	existed  = true
 	begin 
 		proj_repo = client.repo(proj_repo_fullname)
@@ -98,7 +114,7 @@ def does_exist(client, proj_repo_fullname)
 end
 
 
-def get_spec(client, proj_repo_fullname)
+def Get_Spec(client, proj_repo_fullname)
 	begin
 		spec = client.contents( proj_repo_fullname,
 			:path => ".anacapa/assignment_spec.json"
@@ -110,24 +126,23 @@ def get_spec(client, proj_repo_fullname)
 end
 
 
-def init_proj_spec(client, proj_repo_fullname, proj_json)
+def Init_Proj_Spec(client, proj_repo_fullname, proj_json)
 
-	File.open("bin/assignment_spec.json", "w") do |file|
+	File.open("bin/random_assignment_spec.json", "w") do |file|
     	file.puts JSON.pretty_generate(proj_json)
   	end
 
   	client.create_contents( 
   		proj_repo_fullname, 
 		".anacapa/assignment_spec.json", 
-		"Add Assignment_Spec JSON File to each project repo.",{
-			:file => "bin/assignment_spec.json"
-		} )
+		"Add Assignment_Spec JSON File to each project repo.",
+		{ :file => "bin/random_assignment_spec.json" } )
 end
 
 
-def update_proj_spec(client, proj_repo_fullname, proj_json, sha)
+def Update_Proj_Spec(client, proj_repo_fullname, proj_json, sha)
 
-	File.open("bin/assignment_spec.json", "w") do |file|
+	File.open("bin/random_assignment_spec.json", "w") do |file|
     	file.puts JSON.pretty_generate(proj_json)
   	end
 
@@ -135,9 +150,51 @@ def update_proj_spec(client, proj_repo_fullname, proj_json, sha)
 		proj_repo_fullname, 
 		".anacapa/assignment_spec.json", 
 		"Update Assignment_Spec JSON File to each project repo.",
-		sha, {
-			:file => "bin/assignment_spec.json"
-		} )
+		sha, 
+		{ :file => "bin/random_assignment_spec.json" } )
+end
+
+
+
+
+def Get_Assignment_Json(client, course)
+
+	begin
+		course_json = client.contents( "submit-cs-conversion/submit-cs-json",
+			:path => "#{course}.json")
+		course_json = JSON.parse(Base64.decode64(course_json.content))
+	rescue 
+		course_json = {}
+	end
+
+	begin
+		course_sha_list = client.contents( "submit-cs-conversion/submit-cs-json",
+			:path => "#{course}/SHA/" )
+	rescue
+		course_sha_list = []
+	end
+
+	return course_json, course_sha_list
+end
+
+
+def Create_Sha_Files(client, course, sha_list)
+	if sha_list != []
+		for file in sha_list
+			begin
+				sha_file = client.contents( "submit-cs-conversion/submit-cs-json",
+					:path => "#{course}/SHA/#{file.name}"
+					)
+				sha_file = Base64.decode64(sha_file.content)
+			rescue 
+				puts "Sha unsuccessful."
+			end
+
+			File.open("bin/sha_files/#{file.name}", "w") do |file|
+    			file.puts sha_file
+  			end
+		end
+	end
 end
 
 
@@ -151,7 +208,6 @@ OptionParser.new do |parser|
   
 end.parse!
 
-# This items should be the same for all students
 
 if !options[:com]
 	Octokit.configure do |c|
@@ -169,5 +225,11 @@ end
 client = Octokit::Client.new(:access_token => token, 
 							:api_endpoint => "https://github.ucsb.edu/api/v3/"
 							)
-process_course(course_json, client)
+
+course_json, sha_list = Get_Assignment_Json(client, "SANDBOX_CH")
+Create_Sha_Files(client, "SANDBOX_CH", sha_list)
+puts JSON.pretty_generate(course_json)
+process_course("clholoien-testorg-1", course_json, client)
+
+# puts JSON.pretty_generate(course_json)
 

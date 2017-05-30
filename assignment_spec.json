@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "definitions": {},
+  "id": "http://example.com/example.json",
+  "properties": {
+    "assignment_name": {
+      "type": "string"
+    },
+    "deadline": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expected_files": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "maximum_group_size": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "ready": {
+      "default": false,
+      "type": "boolean"
+    },
+    "starter_repo": {
+      "type": "string"
+    },
+    "testables": {
+      "items": {
+        "properties": {
+          "build_command": {
+            "type": "string"
+          },
+          "test_cases": {
+            "items": {
+              "properties": {
+                "command": {
+                  "type": "string"
+                },
+                "diff_source": {
+                  "type": "string"
+                },
+                "expected": {
+                  "default": "generate",
+                  "type": "string"
+                },
+                "hide_expected": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "diff",
+                    "script"
+                  ]
+                },
+                "points": {
+                  "default": 100,
+                  "type": "integer"
+                },
+                "timeout": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "points",
+                "command"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "test_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "build_command",
+          "test_cases",
+          "test_name"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "uneditables": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "testables",
+    "assignment_name",
+    "expected_files",
+    "ready"
+  ],
+  "type": "object"
+}

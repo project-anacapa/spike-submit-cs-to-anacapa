@@ -1,3 +1,29 @@
 {
-  "name": "lab04"
+  "build_files": [
+
+  ],
+  "build_files_json": [
+
+  ],
+  "class_id": 82,
+  "execution_files": [
+
+  ],
+  "execution_files_json": [
+
+  ],
+  "expected_files": [
+
+  ],
+  "group_max": 1,
+  "id": 713,
+  "makefile": {
+  },
+  "makefile_id": null,
+  "name": "test_proj1",
+  "points_possible": 0,
+  "status": "notready",
+  "testables": [
+
+  ]
 }

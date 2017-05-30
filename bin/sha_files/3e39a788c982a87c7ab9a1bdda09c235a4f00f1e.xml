@@ -1,0 +1,19 @@
+
+(^-^) signifies output was removed that normally varies between submissions
+
+Buildfile: /tmp/tmp(^-^)/build-tests.xml
+
+compile:
+    [mkdir] Created dir: /tmp/tmp(^-^)/build/classes
+    [javac] Compiling (^-^) source files to /tmp/tmp(^-^)/build/classes
+
+test_parser_secret_2:
+    [junit] Testsuite: edu.ucsb.cs56.pconrad.parsing.parser.TestParserSecret2
+    [junit] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: (^-^)
+    [junit] 
+    [junit] Testcase: testParseMinus took (^-^) sec
+    [junit] Testcase: testParseTimes took (^-^) sec
+    [junit] Testcase: testParseDiv took (^-^) sec
+
+BUILD SUCCESSFUL
+Total time: (^-^)

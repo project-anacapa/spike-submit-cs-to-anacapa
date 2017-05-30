@@ -11,18 +11,7 @@ require_relative 'modifySpec'
 # This will hold the options we parse
 options = {}
 
-def Add_All_Members(client, org_name)
-	members = ["ncbrown", "pconrad", "gareth", "connor00"]
-	begin
-		org = client.organization(org_name)
-	rescue
-		puts "Could not get org"
-		exit()
-	end
 
-	puts org.id
-
-end
 
 def Process_All_Courses(client)
 	# puts "Process All Courses"
@@ -65,9 +54,9 @@ def Process_Course(client, org_name, old_course_spec)
 		# proj_repo_fullname =  "#{org_name}/#{project["name"]}"
 
 		if proj_num >= 10 
-			repo_name =  "assignment-lab#{proj_num}"
+			repo_name =  "assignment_lab#{proj_num}"
 		else
-			repo_name =  "assignment-lab0#{proj_num}"
+			repo_name =  "assignment_lab0#{proj_num}"
 		end
 
 		proj_repo_fullname =  "#{org_name}/#{repo_name}"
@@ -315,6 +304,7 @@ def Create_Sha_Files(client, course, sha_list)
 end
 
 
+warnings = Array.new
 
 options[:count]=1
 
@@ -343,9 +333,8 @@ end
 client = Octokit::Client.new(:access_token => token, 
 							:api_endpoint => "https://github.ucsb.edu/api/v3/"
 							)
-puts "What course would you like to extract from? (Format seen on https://github.ucsb.edu/submit-cs-conversion/submit-cs-json)"
-org = gets
-org = org.chomp
+
+org = "SANDBOX_CH"
 
 course_json, sha_list = Get_Course(client, org)
 
@@ -353,7 +342,11 @@ Create_Sha_Files(client, org, sha_list)
 
 Process_Course(client, org, course_json)
 
-Add_All_Members(client, org)
+for w in warnings
+	puts w
+end
+
+# puts JSON.pretty_generate(course_json)
 
 
 

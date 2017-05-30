@@ -11,11 +11,23 @@ require_relative 'modifySpec'
 # This will hold the options we parse
 options = {}
 
+def Add_All_Members(client, org_name)
+	members = ["ncbrown", "pconrad", "gareth", "connor00"]
+	begin
+		org = client.organization(org_name)
+	rescue
+		puts "Could not get org"
+		exit()
+	end
+
+	puts org.id
+
+end
 
 def Process_All_Courses(client)
-	puts "Process All Courses"
+	# puts "Process All Courses"
 
-	course = []
+	courses = []
 
 	for course in courses
 		course_json, sha_list = Get_Course(client, org)
@@ -28,7 +40,7 @@ end
 
 
 def Process_Course(client, org_name, old_course_spec)
-	puts "Process Course"
+	# puts "Process Course"
 
 	#Github does not support organizations with underscores...
 	org_name = org_name.tr('_', '-')
@@ -50,31 +62,38 @@ def Process_Course(client, org_name, old_course_spec)
 	for project in old_course_spec["projects"]
 
 		# Change to Assignment_lab00
+		# proj_repo_fullname =  "#{org_name}/#{project["name"]}"
 
-		proj_repo_fullname =  "#{org_name}/#{project["name"]}"
+		if proj_num >= 10 
+			repo_name =  "assignment-lab#{proj_num}"
+		else
+			repo_name =  "assignment-lab0#{proj_num}"
+		end
+
+		proj_repo_fullname =  "#{org_name}/#{repo_name}"
 
 		new_proj_spec, execution_files, expected_files, build_files  = Modify_Spec(proj_repo_fullname, project)
 
 		# Create Project Repo
 		if ! Does_Repo_Exist( client, proj_repo_fullname )	
 
-			client.create_repository( project["name"] , {  
+			client.create_repository( repo_name , {  
 				:organization => org_name,
 				:private => true
 			} )			
-			puts "Created repo #{project["name"]}."
+			# puts "Created repo #{repo_name}."
 		else
-			puts project["name"] + " already exists."
+			# puts "#{repo_name}" + " already exists."
 		end
 
 		spec_json, spec_sha = Get_Spec(client, proj_repo_fullname)
 		# puts JSON.pretty_generate(spec_json)
 
 		if spec_json == {}
-			puts "Creating assignment_spec.json"
+			# puts "Creating assignment_spec.json"
 			Add_Proj_Spec(client, proj_repo_fullname, new_proj_spec)
 		else
-			puts "Updating assignment_spec.json"
+			# puts "Updating assignment_spec.json"
 			Update_Proj_Spec(client, proj_repo_fullname, new_proj_spec, spec_sha)
 		end
 
@@ -104,6 +123,8 @@ def Process_Course(client, org_name, old_course_spec)
 
 		# spec_json, spec_sha = Get_Spec(client, proj_repo_fullname)
 		# puts JSON.pretty_generate(spec_json)
+
+		proj_num += 1
 		
 	end
 
@@ -124,14 +145,14 @@ def Add_Sha_Files(client, proj_repo_fullname, file_path, file_sha)
 end
 
 def Does_Repo_Exist(client, proj_repo_fullname)
-	puts "Does Repo Exist? #{proj_repo_fullname}"
+	# puts "Does Repo Exist? #{proj_repo_fullname}"
 
 	existed  = true
 	begin 
 		proj_repo = client.repo(proj_repo_fullname)
-		puts "Yes"
+		# puts "Yes"
 	rescue
-		puts "No"
+		# puts "No"
 		existed = false
 	end
 	return existed
@@ -139,22 +160,22 @@ end
 
 
 def Get_File(client, proj_repo_fullname, file_path)
-	puts "Does File Exist? #{file_path}"
+	# puts "Does File Exist? #{file_path}"
 
 	begin 
 		file = client.contents( proj_repo_fullname,
 			:path => file_path )
-		puts "Yes"
+		# puts "Yes"
 	rescue
 		file = nil
-		puts "No"
+		# puts "No"
 	end
 	return file
 end
 
 
 def Get_Spec(client, proj_repo_fullname)
-	puts "Get Spec"
+	# puts "Get Spec"
 
 	begin
 		spec = client.contents( proj_repo_fullname,
@@ -168,7 +189,7 @@ end
 
 
 def Add_Proj_Spec(client, proj_repo_fullname, proj_json)
-	puts "Add Proj Spec"
+	# puts "Add Proj Spec"
 
 	File.open("bin/random_assignment_spec.json", "w") do |file|
     	file.puts JSON.pretty_generate(proj_json)
@@ -183,7 +204,7 @@ end
 
 
 def Update_Proj_Spec(client, proj_repo_fullname, proj_json, sha)
-	puts "Update Proj Spec"
+	# puts "Update Proj Spec"
 
 	File.open("bin/random_assignment_spec.json", "w") do |file|
     	file.puts JSON.pretty_generate(proj_json)
@@ -199,7 +220,7 @@ end
 
 
 def Add_File(client, proj_repo_fullname, file_path, file_name)
-	puts "Add File"
+	# puts "Add File"
 	
 	type = ""
 
@@ -225,7 +246,7 @@ end
 
 
 def Update_File(client, proj_repo_fullname, file_path, file_name, sha)
-	puts "Update File"
+	# puts "Update File"
 
 	type = ""
 
@@ -252,7 +273,7 @@ end
 
 
 def Get_Course(client, course)
-	puts "Get Course"
+	# puts "Get Course"
 
 	begin
 		course_json = client.contents( "submit-cs-conversion/submit-cs-json",
@@ -274,7 +295,7 @@ end
 
 
 def Create_Sha_Files(client, course, sha_list)
-	puts "Create Sha Files"
+	# puts "Create Sha Files"
 	if sha_list != []
 		for file in sha_list
 			begin
@@ -283,7 +304,7 @@ def Create_Sha_Files(client, course, sha_list)
 					)
 				sha_file = Base64.decode64(sha_file.content)
 			rescue 
-				puts "Sha unsuccessful."
+				puts "WARNING: Unable to create Sha. #{file.name}"
 			end
 
 			File.open("bin/sha_files/#{file.name}.xml", "w") do |file|
@@ -323,15 +344,19 @@ client = Octokit::Client.new(:access_token => token,
 							:api_endpoint => "https://github.ucsb.edu/api/v3/"
 							)
 
-org = "SANDBOX_CH"
+puts "What course would you like to extract from? (Format seen on https://github.ucsb.edu/submit-cs-conversion/submit-cs-json)"
+org = gets
+org = org.chomp
+
+puts "What is the organization name on the new anacap system?"
+org_dest = gets
+org_dest = org.chomp
 
 course_json, sha_list = Get_Course(client, org)
 
 Create_Sha_Files(client, org, sha_list)
 
-Process_Course(client, org, course_json)
-
-# puts JSON.pretty_generate(course_json)
+Process_Course(client, org_dest, course_json)
 
 
 
