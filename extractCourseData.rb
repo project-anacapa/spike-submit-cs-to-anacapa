@@ -343,7 +343,7 @@ end
 client = Octokit::Client.new(:access_token => token, 
 							:api_endpoint => "https://github.ucsb.edu/api/v3/"
 							)
-puts "What course would you like to extract from?"
+puts "What course would you like to extract from? (Format seen on https://github.ucsb.edu/submit-cs-conversion/submit-cs-json)"
 org = gets
 org = org.chomp
 
