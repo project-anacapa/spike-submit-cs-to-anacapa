@@ -3,7 +3,7 @@
 # returns the new assignment spec json given the assignment spec
 def Modify_Spec(proj_repo_fullname, old_hash)
 
-	puts "Modify_Spec"
+	# puts "Modify_Spec"
 	expected_sha_files = Array.new
 	execution_sha_files = Array.new
 	build_sha_files = Array.new
@@ -12,7 +12,7 @@ def Modify_Spec(proj_repo_fullname, old_hash)
 	#Assignment Name
 	new_hash["assignment_name"] = old_hash["name"]
 	#Deadline
-	new_hash["deadline"] = Time.now.strftime("%Y-%m-%d %H:%M:S")
+	new_hash["deadline"] = Time.now.strftime("%Y-%m-%dT21:33:00-08:00")
 	
 	#Group Size
 	new_hash["maximum_group_size"] = old_hash["group_max"]
@@ -28,8 +28,9 @@ def Modify_Spec(proj_repo_fullname, old_hash)
 		new_hash["ready"] = false
 	end
 
-	#Starter Repo
-	new_hash["starter_repo"] = proj_repo_fullname
+	#Starter Repo ?
+	# new_hash["starter_repo"] = proj_repo_fullname
+	new_hash["expected_files"] = Array.new
 	#Testables
 	new_hash["testables"] = Array.new
 
@@ -37,13 +38,15 @@ def Modify_Spec(proj_repo_fullname, old_hash)
 
 		testable_hash = Hash.new
 
-		testable_hash["expected_files"] = Array.new
-
 		#Testname
 		testable_hash["test_name"] = testable["name"]
-		#Exdcutable
-		testable_hash["build_command"] = testable["executable"]
 		
+		#Executable
+		if testable["make_target"] != nil
+			testable_hash["build_command"] = "make " + testable["make_target"]
+		end
+		
+		#Execution Files
 		for file in testable["execution_files"]
 			execution_sha_files << file["sha1"]
 		end
@@ -53,8 +56,9 @@ def Modify_Spec(proj_repo_fullname, old_hash)
 		end
 
 		for file in testable["expected_files"]
-			puts file["name"]
-			testable_hash["expected_files"] << file["name"]
+			if ! new_hash["expected_files"].include? file["name"]
+				new_hash["expected_files"] << file["name"]
+			end
 		end
 
 		#Test Cases
@@ -70,7 +74,7 @@ def Modify_Spec(proj_repo_fullname, old_hash)
 			# if test_case.key?("")
 			# 	test_case_hash["expected"] = 
 			# else 
-			test_case_hash["expected"] = "generate"
+			test_case_hash["expected"] = test_case["expected"]["sha1"]
 			# end
 			#Hide Expected
 			if test_case.key?("hide_expected")
