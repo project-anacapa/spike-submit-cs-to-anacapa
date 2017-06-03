@@ -1,7 +1,7 @@
 
 
 # returns the new assignment spec json given the assignment spec
-def Modify_Spec(proj_repo_fullname, old_hash)
+def Modify_Spec(client, proj_repo_fullname, old_hash)
 
 	# puts "Modify_Spec"
 	expected_sha_files = Array.new
@@ -52,6 +52,22 @@ def Modify_Spec(proj_repo_fullname, old_hash)
 		end
 
 		for file in testable["build_files"]
+			
+			begin
+				file_contents = Base64.decode64(client.contents( "submit-cs-conversion/submit-cs-json",
+					:path => "#{course}/SHA/#{file.name}"
+					).content)
+				file_contents = Base64.decode64(sha_file.content)
+
+				client.create_contents( 
+			  		proj_repo_fullname, 
+					file_path, 
+					"Add file in #{type} directory to each project repo.",
+					file_contents)
+			rescue 
+				puts "WARNING: Unable to create Sha. #{file.name}"
+			end
+
 			build_sha_files << file["file_hex"]
 		end
 
@@ -97,6 +113,8 @@ def Modify_Spec(proj_repo_fullname, old_hash)
 			#Add Test Case
 			testable_hash["test_cases"] << test_case_hash
 			#Add expected output file
+
+			
 			expected_sha_files << test_case["expected"]["sha1"]
 		end
 

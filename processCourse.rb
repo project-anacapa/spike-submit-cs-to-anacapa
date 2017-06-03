@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-require_relative 'extractCourseDataWrapper'
+require_relative 'extractCourseData'
 require 'octokit'
 
 
@@ -34,22 +34,8 @@ client = Octokit::Client.new(:access_token => token,
 							:api_endpoint => "https://github.ucsb.edu/api/v3/"
 							)
 
-puts "What course would you like to extract from? (Format seen on https://github.ucsb.edu/submit-cs-conversion/submit-cs-json)"
-org = gets
-org = org.chomp
+course_name = ARGV[0]
+course_org = ARGV[1]
 
-puts "What is the organization name for the course on the new anacapa system?"
-org_dest = gets
-org_dest = org.chomp
-
-course_json, sha_list = Get_Course(client, org)
-
-Create_Sha_Files(client, org, sha_list)
-
-if Process_Course(client, org_dest, course_json)
-	puts "Course processed successfully"
-else
-	puts "Course NOT processed successfully."
-end
-
-
+CE = CourseExtractor.new(client, course_name, course_org)
+CE.Process_Course()
