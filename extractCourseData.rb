@@ -9,10 +9,11 @@ require 'date'
 
 class CourseExtractor
 
-	def initialize(client, course_name, course_org)
+	def initialize(client, course_name, course_org, add_submissions)
 		@client = client
 		@course_name = course_name
 		@course_org = course_org
+		@add_submissions = add_submissions
 	end	
 
 
@@ -40,9 +41,75 @@ class CourseExtractor
 
 			proj_repo_fullname = Init_Repo(repo_name)
 
+			if @add_submissions
+				Add_Student_Submissions(project["id"], proj_num)
+			end
+
 			Update_Proj_Spec(proj_repo_fullname, Modify_Spec(proj_repo_fullname, project) )
 
 			proj_num += 1
+		end
+	end
+
+
+
+	def Add_Student_Submissions(proj_id, proj_num)
+
+		course_sub_repo = "#{@course_name}_submissions"
+
+		if !Does_Repo_Exist("submit-cs-conversion/#{course_sub_repo}")
+			STDERR.puts "WARNING: submit-cs-conversion/#{course_sub_repo} does not exist." 
+			return
+		end
+
+		begin
+			all_proj = JSON.parse(Base64.decode64( @client.contents( "submit-cs-conversion/#{course_sub_repo}",
+				:path => "#{@course_name}.json"
+				).content ))
+		rescue 
+			STDERR.puts "WARNING: Unable to FIND #{@course_name}.json at submit-cs-conversion/#{course_sub_repo}/#{@course_name}.json"
+			return
+		end
+
+		proj = all_proj["#{proj_id}"]
+
+		if proj_num >= 10 
+			lab_name =  "lab#{proj_num}"
+		else
+			lab_name =  "lab0#{proj_num}"
+		end
+
+		proj.each do |sub_type, submissions|
+
+			if sub_type == "consenting_users_with_solo_submissions"
+
+				submissions.each do |user, subs|
+					umail = user.split("@umail.ucsb.edu")
+					repo_name = "#{lab_name}-#{umail[0]}"
+
+					sub_repo_fullname = Init_Repo(repo_name)
+					latest_sub = subs[-1]
+
+					for file in latest_sub["files"]
+						Extract_and_Save_File(sub_repo_fullname, "#{file["filename"]}", "#{course_sub_repo}", "#{@course_name}/SHA/#{file["sha1"]}")
+					end
+
+				end
+
+			elsif sub_type == "consenting_users_with_group_submissions"
+
+				submissions.each do |user, subs|
+
+					umail = user.split("@umail.ucsb.edu")
+					repo_name = "#{lab_name}-#{umail[0]}"
+					sub_repo_fullname = Init_Repo(repo_name)
+					latest_sub = subs[-1]
+
+					for file in latest_sub["files"]
+						Extract_and_Save_File(sub_repo_fullname, "#{file["filename"]}", "#{course_sub_repo}", "#{@course_name}/SHA/#{file["sha1"]}")
+					end
+				end
+			end
 		end
 	end
 
@@ -53,6 +120,8 @@ class CourseExtractor
 		new_hash["assignment_name"] = old_hash["name"]
 		new_hash["deadline"] = Time.now.strftime("%Y-%m-%dT21:33:00-08:00")
 		new_hash["maximum_group_size"] = old_hash["group_max"]
+		new_hash["expected_files"] = Array.new
+		new_hash["testables"] = Array.new
 
 		if old_hash.key?("status")
 
@@ -65,53 +134,53 @@ class CourseExtractor
 			new_hash["ready"] = false
 		end
 
-		
-		new_hash["expected_files"] = Array.new
-		new_hash["testables"] = Array.new
+		for file in old_hash["expected_files"]
+			new_hash["expected_files"] << file["name"]
+		end
+
+		if old_hash.include?"execution_files_json"
+
+			for file in old_hash["execution_files_json"]
+				Extract_and_Save_File(proj_repo_fullname, ".anacapa/test_data/#{file["name"]}","submit-cs-json", "#{@course_name}/SHA/#{file["file_hex"]}")
+			end
+
+		elsif old_hash.include?"execution_files"
+
+			for file in old_hash["execution_files"]
+				Extract_and_Save_File(proj_repo_fullname, ".anacapa/test_data/#{file["sha1"]}","submit-cs-json", "#{@course_name}/SHA/#{file["sha1"]}", "submit-cs-json")
+			end
+
+		end
+
+		if old_hash.include? "build_files_json"
+
+			for file in old_hash["build_files_json"]
+				Extract_and_Save_File(proj_repo_fullname,".anacapa/build_data/#{file["name"]}","submit-cs-json", "#{@course_name}/SHA/#{file["file_hex"]}")
+			end
+
+		elsif old_hash.include? "build_files"
+
+			for file in old_hash["build_files"]
+				Extract_and_Save_File(proj_repo_fullname, ".anacapa/build_data/#{file["name"]}","submit-cs-json", "#{@course_name}/SHA/#{file["sha1"]}")
+			end
+
+		end
+
 
 		for testable in old_hash["testables"]
 
 			testable_hash = Hash.new
 			testable_hash["test_name"] = testable["name"]
+			testable_hash["test_cases"] = Array.new
 			
 			if testable["make_target"] != nil
 				testable_hash["build_command"] = "make " + testable["make_target"]
 			end
-			
-			if testable.include? "execution_files_json"
-				for file in testable["execution_files_json"]
-					Extract_and_Save_File(proj_repo_fullname, file["file_hex"], ".anacapa/test_data/#{file["name"]}")
-				end
-			elsif testable.include? "execution_files"
-				for file in testable["execution_files"]
-					Extract_and_Save_File(proj_repo_fullname, file["sha1"], ".anacapa/test_data/#{file["sha1"]}")
-				end
-			end
-
-			if testable.include? "build_files_json"
-				for file in testable["build_files_json"]
-					Extract_and_Save_File(proj_repo_fullname, file["file_hex"], ".anacapa/build_data/#{file["name"]}")
-				end
-			elsif testable.include? "build_files"
-				for file in testable["build_files"]
-					Extract_and_Save_File(proj_repo_fullname, file["file_hex"], ".anacapa/build_data/#{file["name"]}")
-				end
-			end
-				
-
-			for file in testable["expected_files"]
-				# only add distinct file names to this
-				if ! new_hash["expected_files"].include? file["name"]
-					new_hash["expected_files"] << file["name"]
-				end
-			end
-
-			#Test Cases
-			testable_hash["test_cases"] = Array.new
 
 			for test_case in testable["test_cases"]
 
 				test_case_hash = Hash.new
+				test_case_hash["name"] = test_case["name"]
 				test_case_hash["command"] = test_case["args"]
 				test_case_hash["diff_source"] = test_case["source"]
 				test_case_hash["expected"] = test_case["expected"]["sha1"]
@@ -137,7 +206,7 @@ class CourseExtractor
 
 				testable_hash["test_cases"] << test_case_hash
 
-				Extract_and_Save_File(proj_repo_fullname, test_case["expected"]["sha1"], ".anacapa/expected_output/#{test_case["expected"]["sha1"]}")
+				Extract_and_Save_File(proj_repo_fullname, ".anacapa/expected_output/#{test_case["expected"]["sha1"]}","submit-cs-json", "#{@course_name}/SHA/#{test_case["expected"]["sha1"]}")
 			end
 
 			new_hash["testables"] << testable_hash
@@ -218,14 +287,14 @@ class CourseExtractor
 	end
 
 
-	def Extract_and_Save_File(proj_repo_fullname, sha_file_name, file_path)
+	def Extract_and_Save_File(proj_repo_fullname, file_path, source_repo, sha_file_path)
 
 		begin
-			file_contents = Base64.decode64( @client.contents( "submit-cs-conversion/submit-cs-json",
-				:path => "#{@course_name}/SHA/#{sha_file_name}"
+			file_contents = Base64.decode64( @client.contents( "submit-cs-conversion/#{source_repo}",
+				:path => "#{sha_file_path}"
 				).content )
 		rescue 
-			STDERR.puts "WARNING: Unable to FIND #{sha_file_name} at submit-cs-conversion/submit-cs-json/#{@course_name}/SHA/#{sha_file_name}"
+			STDERR.puts "WARNING: Unable to FIND submit-cs-conversion/#{source_repo}/#{sha_file_path}"
 			return
 		end
 
@@ -239,7 +308,7 @@ class CourseExtractor
 					"Add #{file_path} in #{proj_repo_fullname}.",
 					file_contents)
 			rescue 
-				STDERR.puts "WARNING: Unable to ADD #{file_path} using: #{sha_file_name}."
+				STDERR.puts "WARNING: Unable to ADD #{file_path} using: #{sha_file_path}."
 			end
 		else
 			begin
@@ -248,10 +317,10 @@ class CourseExtractor
 					file_path, 
 					"Update #{file_path} in #{proj_repo_fullname}" ,
 					file.sha, 
-					file_contents )
+					file_contents)
 
 			rescue
-				STDERR.puts "WARNING: Unable to UPDATE #{file_path} using: #{sha_file_name}"
+				STDERR.puts "WARNING: Unable to UPDATE #{file_path} using: #{sha_file_path}"
 			end
 		end
 	end

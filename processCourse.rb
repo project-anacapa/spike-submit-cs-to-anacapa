@@ -37,5 +37,5 @@ client = Octokit::Client.new(:access_token => token,
 course_name = ARGV[0]
 course_org = ARGV[1]
 
-CE = CourseExtractor.new(client, course_name, course_org)
+CE = CourseExtractor.new(client, course_name, course_org, true)
 CE.Process_Course()
