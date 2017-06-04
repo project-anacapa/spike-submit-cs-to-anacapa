@@ -24,6 +24,10 @@ class CourseExtractor
 			return
 		end
 
+		if !Check_Membership()
+			return
+		end
+
 		old_course_spec = Get_Course()
 
 		if old_course_spec.empty?
@@ -41,13 +45,14 @@ class CourseExtractor
 
 			proj_repo_fullname = Init_Repo(repo_name)
 
+			Update_Proj_Spec(proj_repo_fullname, Modify_Spec(proj_repo_fullname, project) )
+
 			if @add_submissions
 				Add_Student_Submissions(project["id"], proj_num)
 			end
 
-			Update_Proj_Spec(proj_repo_fullname, Modify_Spec(proj_repo_fullname, project) )
-
 			proj_num += 1
+			puts " "
 		end
 	end
 
@@ -71,7 +76,6 @@ class CourseExtractor
 			return
 		end
 
-		proj = all_proj["#{proj_id}"]
 
 		if proj_num >= 10 
 			lab_name =  "lab#{proj_num}"
@@ -79,42 +83,69 @@ class CourseExtractor
 			lab_name =  "lab0#{proj_num}"
 		end
 
+		proj = all_proj["#{proj_id}"]
+
+		if proj == nil
+			STDERR.puts "WARNING: Unable to find submissions for #{lab_name}"
+			return
+		end
+
+
+		puts "Adding Student Submissions for #{lab_name}"
+
 		proj.each do |sub_type, submissions|
 
-			if sub_type == "consenting_users_with_solo_submissions"
+			if sub_type == "consenting_users_with_solo_submissions" 
 
 				submissions.each do |user, subs|
-					umail = user.split("@umail.ucsb.edu")
-					repo_name = "#{lab_name}-#{umail[0]}"
 
-					sub_repo_fullname = Init_Repo(repo_name)
-					latest_sub = subs[-1]
-
-					for file in latest_sub["files"]
-						Extract_and_Save_File(sub_repo_fullname, "#{file["filename"]}", "#{course_sub_repo}", "#{@course_name}/SHA/#{file["sha1"]}")
-					end
-
+					Add_One_Submission(user, subs, course_sub_repo, lab_name)
 				end
 
 			elsif sub_type == "consenting_users_with_group_submissions"
 
 				submissions.each do |user, subs|
 
-					umail = user.split("@umail.ucsb.edu")
-					repo_name = "#{lab_name}-#{umail[0]}"
-					sub_repo_fullname = Init_Repo(repo_name)
-					latest_sub = subs[-1]
+					Add_One_Submission(user, subs, course_sub_repo, lab_name)
 
-					for file in latest_sub["files"]
-						Extract_and_Save_File(sub_repo_fullname, "#{file["filename"]}", "#{course_sub_repo}", "#{@course_name}/SHA/#{file["sha1"]}")
-					end
 				end
+
+			end
+		end
+	end
+
+
+	def Add_One_Submission(user, subs, course_sub_repo, lab_name)
+		umail = user.split("@umail.ucsb.edu")
+		username = umail[0]
+		repo_name = "#{lab_name}-#{username}"
+
+		if Github_User(username)
+			sub_repo_fullname = Init_Repo(repo_name)
+			Add_Collaborator(sub_repo_fullname, username)
+			latest_sub = subs[-1]
+
+			for file in latest_sub["files"]
+				if file.include? "sha"
+					sha_file_path = "#{@course_name}/SHA/#{file["sha"]}"
+				elsif file.include? "sha1"
+					sha_file_path = "#{@course_name}/SHA/#{file["sha1"]}"
+				elsif file.include? "file_hex"
+					sha_file_path = "#{@course_name}/SHA/#{file["file_hex"]}"
+				else
+					STDERR.puts "WARNING SHA file not found."
+					return
+				end
+
+				Extract_and_Save_File(sub_repo_fullname, "#{file["filename"]}", "#{course_sub_repo}", sha_file_path)
 			end
 		end
 	end
 
 
 	def Modify_Spec(proj_repo_fullname, old_hash)
+
+		puts "Modifying Spec for #{proj_repo_fullname}"
 
 		new_hash = Hash.new
 		new_hash["assignment_name"] = old_hash["name"]
@@ -144,11 +175,11 @@ class CourseExtractor
 				Extract_and_Save_File(proj_repo_fullname, ".anacapa/test_data/#{file["name"]}","submit-cs-json", "#{@course_name}/SHA/#{file["file_hex"]}")
 			end
 
-		elsif old_hash.include?"execution_files"
+		# elsif old_hash.include?"execution_files"
 
-			for file in old_hash["execution_files"]
-				Extract_and_Save_File(proj_repo_fullname, ".anacapa/test_data/#{file["sha1"]}","submit-cs-json", "#{@course_name}/SHA/#{file["sha1"]}", "submit-cs-json")
-			end
+		# 	for file in old_hash["execution_files"]
+		# 		Extract_and_Save_File(proj_repo_fullname, ".anacapa/test_data/#{file["sha1"]}","submit-cs-json", "#{@course_name}/SHA/#{file["sha1"]}")
+		# 	end
 
 		end
 
@@ -158,11 +189,11 @@ class CourseExtractor
 				Extract_and_Save_File(proj_repo_fullname,".anacapa/build_data/#{file["name"]}","submit-cs-json", "#{@course_name}/SHA/#{file["file_hex"]}")
 			end
 
-		elsif old_hash.include? "build_files"
+		# elsif old_hash.include? "build_files"
 
-			for file in old_hash["build_files"]
-				Extract_and_Save_File(proj_repo_fullname, ".anacapa/build_data/#{file["name"]}","submit-cs-json", "#{@course_name}/SHA/#{file["sha1"]}")
-			end
+		# 	for file in old_hash["build_files"]
+		# 		Extract_and_Save_File(proj_repo_fullname, ".anacapa/build_data/#{file["name"]}","submit-cs-json", "#{@course_name}/SHA/#{file["sha1"]}")
+		# 	end
 
 		end
 
@@ -206,7 +237,7 @@ class CourseExtractor
 
 				testable_hash["test_cases"] << test_case_hash
 
-				Extract_and_Save_File(proj_repo_fullname, ".anacapa/expected_output/#{test_case["expected"]["sha1"]}","submit-cs-json", "#{@course_name}/SHA/#{test_case["expected"]["sha1"]}")
+				Extract_and_Save_File(proj_repo_fullname, ".anacapa/expected_outputs/#{test_case["expected"]["sha1"]}","submit-cs-json", "#{@course_name}/SHA/#{test_case["expected"]["sha1"]}")
 			end
 
 			new_hash["testables"] << testable_hash
@@ -228,7 +259,9 @@ class CourseExtractor
 
 
 	def Init_Repo(repo_name)
-		
+
+		puts "Initializing Repo: #{repo_name}"
+
 		proj_repo_fullname =  "#{@course_org}/#{repo_name}"
 
 		if ! Does_Repo_Exist(proj_repo_fullname)	
@@ -352,13 +385,35 @@ class CourseExtractor
 	end
 
 
+	def Check_Membership()
+		if @client.organization_member?(@course_org, @client.user.login)
+			return true
+		else
+			STDERR.puts "WARNING: clholoien is NOT an owner of the organization - " + @course_org
+			return false
+		end
+	end
 
-	# if @client.organization_member?(@course_org, @client.user.login)
-	# 		puts "User IS part of the organization - " + @course_org
-	# 	else
-	# 		puts "User is NOT part of the organization - " + @course_org
-	# 		return
-	# 	end
+
+	def Github_User(username)
+		begin
+			@client.user(username)
+			# puts "#{username} IS on github"
+			return true
+		rescue
+			# puts "#{username} is NOT on github"
+			return false
+		end
+	end
+
+
+	def Add_Collaborator(repo_fullname, username)
+		begin
+			@client.add_collaborator(repo_fullname, username)
+		rescue 
+			STDERR.puts "WARNING: Unable to add #{username} as a collaborator to #{repo_fullname}"
+		end
+	end
 
 end
 
