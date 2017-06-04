@@ -1,8 +1,6 @@
 # spike-submit-cs-to-anacapa
 SPIKE of converting submit.cs data into github organization and repos formatted for Anacapa Grader
 
-This no longer is just a spike but rather a fully working edition of the course extraction from the old submit system to the new anacapa system.
-
 ## How to Run:
 
 **NOTE:** Before running make sure to create an organization on github for the the destination of the course data and make clholoien an owner.
