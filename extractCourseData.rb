@@ -9,10 +9,11 @@ require 'date'
 
 class CourseExtractor
 
-	def initialize(client, course_name, course_org, add_submissions)
+	def initialize(client, course_name, course_org, add_assignments, add_submissions)
 		@client = client
 		@course_name = course_name
 		@course_org = course_org
+		@add_assignments = add_assignments
 		@add_submissions = add_submissions
 	end	
 
@@ -43,9 +44,11 @@ class CourseExtractor
 				repo_name =  "assignment-lab0#{proj_num}"
 			end
 
-			proj_repo_fullname = Init_Repo(repo_name)
+			if @add_assignments
+				proj_repo_fullname = Init_Repo(repo_name)
 
-			Update_Proj_Spec(proj_repo_fullname, Modify_Spec(proj_repo_fullname, project) )
+				Update_Proj_Spec(proj_repo_fullname, Modify_Spec(proj_repo_fullname, project) )
+			end
 
 			if @add_submissions
 				Add_Student_Submissions(project["id"], proj_num)
@@ -125,6 +128,8 @@ class CourseExtractor
 			Add_Collaborator(sub_repo_fullname, username)
 			latest_sub = subs[-1]
 
+			Create_Or_Update_File(sub_repo_fullname, "ReadMe.md", "https://submit.cs.ucsb.edu/submission/#{latest_sub["id"]}")
+
 			for file in latest_sub["files"]
 				if file.include? "sha"
 					sha_file_path = "#{@course_name}/SHA/#{file["sha"]}"
@@ -175,12 +180,6 @@ class CourseExtractor
 				Extract_and_Save_File(proj_repo_fullname, ".anacapa/test_data/#{file["name"]}","submit-cs-json", "#{@course_name}/SHA/#{file["file_hex"]}")
 			end
 
-		# elsif old_hash.include?"execution_files"
-
-		# 	for file in old_hash["execution_files"]
-		# 		Extract_and_Save_File(proj_repo_fullname, ".anacapa/test_data/#{file["sha1"]}","submit-cs-json", "#{@course_name}/SHA/#{file["sha1"]}")
-		# 	end
-
 		end
 
 		if old_hash.include? "build_files_json"
@@ -189,12 +188,10 @@ class CourseExtractor
 				Extract_and_Save_File(proj_repo_fullname,".anacapa/build_data/#{file["name"]}","submit-cs-json", "#{@course_name}/SHA/#{file["file_hex"]}")
 			end
 
-		# elsif old_hash.include? "build_files"
+		end
 
-		# 	for file in old_hash["build_files"]
-		# 		Extract_and_Save_File(proj_repo_fullname, ".anacapa/build_data/#{file["name"]}","submit-cs-json", "#{@course_name}/SHA/#{file["sha1"]}")
-		# 	end
-
+		if old_hash.include? "makefile"
+			Extract_and_Save_File(proj_repo_fullname, ".anacapa/build_data/makefile", "submit-cs-json", "#{@course_name}/SHA/#{old_hash["makefile"]["file_hex"]}")
 		end
 
 
@@ -331,32 +328,42 @@ class CourseExtractor
 			return
 		end
 
-		file = Get_File(proj_repo_fullname, file_path)
+
+		Create_Or_Update_File(proj_repo_fullname, file_path, file_contents)
+
+	end
+
+	def Create_Or_Update_File(repo_fullname, file_path, file_contents)
+
+
+		file = Get_File(repo_fullname, file_path)
 
 		if file == nil
 			begin
 				@client.create_contents( 
-			  		proj_repo_fullname, 
+			  		repo_fullname, 
 					file_path, 
-					"Add #{file_path} in #{proj_repo_fullname}.",
+					"Add #{file_path} in #{repo_fullname}.",
 					file_contents)
 			rescue 
-				STDERR.puts "WARNING: Unable to ADD #{file_path} using: #{sha_file_path}."
+				STDERR.puts "WARNING: Unable to ADD #{file_path}."
 			end
 		else
 			begin
 				@client.update_contents( 
-					proj_repo_fullname, 
+					repo_fullname, 
 					file_path, 
-					"Update #{file_path} in #{proj_repo_fullname}" ,
+					"Update #{file_path} in #{repo_fullname}" ,
 					file.sha, 
 					file_contents)
 
 			rescue
-				STDERR.puts "WARNING: Unable to UPDATE #{file_path} using: #{sha_file_path}"
+				STDERR.puts "WARNING: Unable to UPDATE #{file_path}"
 			end
 		end
+
 	end
+
 
 	def Get_Course()
 
@@ -398,10 +405,9 @@ class CourseExtractor
 	def Github_User(username)
 		begin
 			@client.user(username)
-			# puts "#{username} IS on github"
 			return true
 		rescue
-			# puts "#{username} is NOT on github"
+			STDERR.puts "WARNING: User #{username} is not user on github.ucsb.edu"
 			return false
 		end
 	end

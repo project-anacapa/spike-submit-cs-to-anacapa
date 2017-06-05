@@ -8,11 +8,13 @@ SPIKE of converting submit.cs data into github organization and repos formatted 
 - Clone repository
 - Run either:
 	- ./processCourse {course_name} {course_org} 
-		- To extract the course data from  https://github.ucsb.edu/submit-cs-conversion/submit-cs-json/{course_name}.json and put it into the organization specified by course_org.  
-		- This way of calling ./processCourse will NOT add student submissions to course organization
+		- To extract the course data from  https://github.ucsb.edu/submit-cs-conversion/submit-cs-json/{course_name}.json, put it into the organization specified by course_org AND add all student submissions to course organization
 
 	- ./processCourse -s {course_name} {course_org}
-		- To do the same as above except it will add all student repos.
+		- To extract the course data from  https://github.ucsb.edu/submit-cs-conversion/submit-cs-json/{course_name}.json and put it into the organization specified by course_org
+
+	- ./processCourse -a {course_name} {course_org}
+		- To add all student submissions to course organization
 
 
 

@@ -14,8 +14,12 @@ OptionParser.new do |parser|
     options[:com] = v
   end
 
-  parser.on("-s", "--student", "Add student submissions for this course") do |v|
-  	options[:student] = v
+  parser.on("-s", "--students", "ONLY Add student submissions for this course") do |v|
+  	options[:students] = v
+  end
+
+  parser.on("-a", "--assignments", "ONLY Add professor assignments for this course") do |v|
+  	options[:assignments] = v
   end
 
 end.parse!
@@ -27,11 +31,17 @@ if !options[:com]
 	end
 end
 
-if options[:student]
-	add_submissions = true
-else
+add_submissions = true
+add_assignments = true
+
+if options[:students]
+	add_assignments = false
+
+elsif options[:assignment]
 	add_submissions = false
 end
+
+
 
 if ENV["GITHUB_PERSONAL_ACCESS_TOKEN"]
 	token = ENV["GITHUB_PERSONAL_ACCESS_TOKEN"]
@@ -47,5 +57,5 @@ client = Octokit::Client.new(:access_token => token,
 course_name = ARGV[0]
 course_org = ARGV[1]
 
-CE = CourseExtractor.new(client, course_name, course_org, add_submissions)
+CE = CourseExtractor.new(client, course_name, course_org, add_assignments, add_submissions)
 CE.Process_Course()
