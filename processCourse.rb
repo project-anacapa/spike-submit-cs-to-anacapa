@@ -22,7 +22,7 @@ OptionParser.new do |parser|
   	options[:studentsFirst] = v
   end
 
-  parser.on("-si", "--studentsNext", "ONLY Add the NEXT student submissions for this course") do |v|
+  parser.on("-sn", "--studentsNext", "ONLY Add the NEXT student submissions for this course") do |v|
   	options[:studentsNext] = v
   end
 
@@ -48,8 +48,7 @@ which_sub = "LAST"
 if options[:students]
 	add_assignments = false
 
-
-elsif options[:assignment]
+elsif options[:assignments]
 	add_submissions = false
 
 elsif options[:studentsFirst]

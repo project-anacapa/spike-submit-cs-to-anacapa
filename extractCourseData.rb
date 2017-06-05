@@ -36,14 +36,19 @@ class CourseExtractor
 			return
 		end
 
-		proj_num = 0
+		# proj_num = 0
+
+
+
 		for project in old_course_spec["projects"]
 
-			if proj_num >= 10 
-				repo_name =  "assignment-lab#{proj_num}"
-			else
-				repo_name =  "assignment-lab0#{proj_num}"
+			lab_name = project["name"].gsub(/\W+/, '_')
+
+			if lab_name.length > 15
+				lab_name = "p#{project["id"]}"
 			end
+
+			repo_name =  "assignment-#{lab_name}"
 
 			if @add_assignments
 				proj_repo_fullname = Init_Repo(repo_name)
@@ -51,25 +56,21 @@ class CourseExtractor
 				Update_Proj_Spec(proj_repo_fullname, Modify_Spec(proj_repo_fullname, project) )
 			end
 
-			# THIS ID IS CREATING A MISMATCH!!!
-			# These projects are not necessarily in order.
-			# (IE CS32_f15 starts with 351, 350, ... instead of 350, 351, ...)
-			# This makes lab00 -> lab01 and lab01 -> lab00
 
 			proj_id = project["id"]
 
 			if @add_submissions
-				Add_Student_Submissions(proj_id, proj_num)
+				Add_Student_Submissions(proj_id, lab_name)
 			end
 
-			proj_num += 1
+			# proj_num += 1
 			puts " "
 		end
 	end
 
 
 #  proj_id is the key for the hash given the old {course_name}.json file...
-	def Add_Student_Submissions(proj_id, proj_num)
+	def Add_Student_Submissions(proj_id, lab_name)
 
 		course_sub_repo = "#{@course_name}_submissions"
 
@@ -82,17 +83,13 @@ class CourseExtractor
 			all_proj = JSON.parse(Base64.decode64( @client.contents( "submit-cs-conversion/#{course_sub_repo}",
 				:path => "#{@course_name}.json"
 				).content ))
-		rescue 
+		rescue Exception => e
 			STDERR.puts "WARNING: Unable to FIND #{@course_name}.json at submit-cs-conversion/#{course_sub_repo}/#{@course_name}.json"
+			STDERR.puts e.message, e.backtrace.inspect
+
 			return
 		end
 
-
-		if proj_num >= 10 
-			lab_name =  "lab#{proj_num}"
-		else
-			lab_name =  "lab0#{proj_num}"
-		end
 
 		proj = all_proj["#{proj_id}"]
 
@@ -327,8 +324,10 @@ class CourseExtractor
 					:organization => @course_org,
 					:private => true
 				})	
-			rescue
+			rescue Exception => e
 				STDERR.puts "WARNING: Unable to CREATE repository #{proj_repo_fullname}"
+				STDERR.puts e.message, e.backtrace.inspect
+
 			end
 		end
 
@@ -358,8 +357,10 @@ class CourseExtractor
 					".anacapa/assignment_spec.json", 
 					"Add Assignment_Spec JSON File to each project repo.",
 					JSON.pretty_generate(new_proj_spec) )
-			rescue
+			rescue Exception => e
 				STDERR.puts "WARNING: Unable to ADD assignment_spec.json"
+				STDERR.puts e.message, e.backtrace.inspect
+
 			end
 		else
 
@@ -370,8 +371,10 @@ class CourseExtractor
 					"Update Assignment_Spec JSON file for each project repo.",
 					old_proj_spec.sha, 
 					JSON.pretty_generate(new_proj_spec) )
-			rescue
+			rescue Exception => e
 				STDERR.puts "WARNING: Unable to UPDATE assignment_spec.json"
+				STDERR.puts e.message, e.backtrace.inspect
+
 			end
 		end
 	end
@@ -393,7 +396,8 @@ class CourseExtractor
 
 	end
 
-	def Create_Or_Update_File(repo_fullname, file_path, file_contents)
+
+	def Create_Or_Update_File_Helper(repo_fullname, file_path, file_contents)
 
 
 		file = Get_File(repo_fullname, file_path)
@@ -405,8 +409,10 @@ class CourseExtractor
 					file_path, 
 					"Add #{file_path} in #{repo_fullname}.",
 					file_contents)
-			rescue 
+			rescue Exception => e
 				STDERR.puts "WARNING: Unable to ADD #{file_path}."
+				STDERR.puts e.message, e.backtrace.inspect
+				raise e
 			end
 		else
 			begin
@@ -416,12 +422,39 @@ class CourseExtractor
 					"Update #{file_path} in #{repo_fullname}" ,
 					file.sha, 
 					file_contents)
-
-			rescue
+			rescue Exception => e
 				STDERR.puts "WARNING: Unable to UPDATE #{file_path}"
+				STDERR.puts e.message, e.backtrace.inspect
+				raise e
 			end
 		end
 
+	end
+
+
+	def Create_Or_Update_File(repo_fullname, file_path, file_contents)
+
+		num_tries = 0
+		max_tries = 3
+		done  = false
+
+		while num_tries < max_tries && !done
+			begin
+				Create_Or_Update_File_Helper(repo_fullname, file_path, file_contents)
+				done = true
+				if num_tries > 0
+					STDERR.puts "SUCCEEDED!"
+				end
+			rescue
+				sleep(0.1)
+				num_tries += 1
+				if num_tries < max_tries
+					STDERR.puts "Retrying..."
+				else
+					STDERR.puts "GIVING UP!"
+				end
+			end
+		end
 	end
 
 
@@ -432,8 +465,9 @@ class CourseExtractor
 				"submit-cs-conversion/submit-cs-json",
 				:path => "#{@course_name}.json").content))
 			return course_json
-		rescue 
+		rescue  Exception => e
 			STDERR.puts "WARNING: Could not GET course at submit-cs-conversion/submit-cs-json/#{@course_name}.json"
+			STDERR.puts e.message, e.backtrace.inspect
 			return {}
 		end
 	end
@@ -444,7 +478,7 @@ class CourseExtractor
 		begin 
 			file = @client.contents( proj_repo_fullname,
 				:path => file_path )
-		rescue
+		rescue 
 			file = nil
 		end
 
@@ -455,8 +489,9 @@ class CourseExtractor
 	def Check_Membership()
 		if @client.organization_member?(@course_org, @client.user.login)
 			return true
-		else
-			STDERR.puts "WARNING: clholoien is NOT an owner of the organization - " + @course_org
+		else 
+			STDERR.puts "WARNING: #{@client.user.login} is NOT an owner of the organization - " + @course_org
+			STDERR.puts "Check that you have an env.sh file with a personal access token that has repo access permission"
 			return false
 		end
 	end
@@ -466,8 +501,9 @@ class CourseExtractor
 		begin
 			@client.user(username)
 			return true
-		rescue
+		rescue Exception => e
 			STDERR.puts "WARNING: User #{username} is not user on github.ucsb.edu"
+			STDERR.puts e.message, e.backtrace.inspect
 			return false
 		end
 	end
@@ -476,8 +512,9 @@ class CourseExtractor
 	def Add_Collaborator(repo_fullname, username)
 		begin
 			@client.add_collaborator(repo_fullname, username)
-		rescue 
+		rescue Exception => e
 			STDERR.puts "WARNING: Unable to add #{username} as a collaborator to #{repo_fullname}"
+			STDERR.puts e.message, e.backtrace.inspect
 		end
 	end
 
