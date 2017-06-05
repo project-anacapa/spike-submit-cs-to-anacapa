@@ -9,12 +9,13 @@ require 'date'
 
 class CourseExtractor
 
-	def initialize(client, course_name, course_org, add_assignments, add_submissions)
+	def initialize(client, course_name, course_org, add_assignments, add_submissions, which_sub)
 		@client = client
 		@course_name = course_name
 		@course_org = course_org
 		@add_assignments = add_assignments
 		@add_submissions = add_submissions
+		@which_sub = which_sub
 	end	
 
 
@@ -50,8 +51,15 @@ class CourseExtractor
 				Update_Proj_Spec(proj_repo_fullname, Modify_Spec(proj_repo_fullname, project) )
 			end
 
+			# THIS ID IS CREATING A MISMATCH!!!
+			# These projects are not necessarily in order.
+			# (IE CS32_f15 starts with 351, 350, ... instead of 350, 351, ...)
+			# This makes lab00 -> lab01 and lab01 -> lab00
+
+			proj_id = project["id"]
+
 			if @add_submissions
-				Add_Student_Submissions(project["id"], proj_num)
+				Add_Student_Submissions(proj_id, proj_num)
 			end
 
 			proj_num += 1
@@ -60,7 +68,7 @@ class CourseExtractor
 	end
 
 
-
+#  proj_id is the key for the hash given the old {course_name}.json file...
 	def Add_Student_Submissions(proj_id, proj_num)
 
 		course_sub_repo = "#{@course_name}_submissions"
@@ -124,13 +132,30 @@ class CourseExtractor
 		repo_name = "#{lab_name}-#{username}"
 
 		if Github_User(username)
+
 			sub_repo_fullname = Init_Repo(repo_name)
 			Add_Collaborator(sub_repo_fullname, username)
-			latest_sub = subs[-1]
 
-			Create_Or_Update_File(sub_repo_fullname, "ReadMe.md", "https://submit.cs.ucsb.edu/submission/#{latest_sub["id"]}")
+			if @which_sub == "FIRST"
+				sub_to_send = subs[0]
+				puts "FIRST - SUB"
 
-			for file in latest_sub["files"]
+			elsif @which_sub == "NEXT"
+				next_index = Get_Sub_Index(sub_repo_fullname, subs)
+				sub_to_send = subs[ next_index ]
+				puts "NEXT - SUB: #{next_index}"
+
+			else #LAST SUB
+				puts "LAST - SUB"
+				sub_to_send = subs[-1]
+			end
+
+			Create_Or_Update_File(sub_repo_fullname, ".anacapa/submission.json", JSON.pretty_generate(sub_to_send))
+
+
+			Create_Or_Update_File(sub_repo_fullname, "ReadMe.md", "https://submit.cs.ucsb.edu/submission/#{sub_to_send["id"]}")
+
+			for file in sub_to_send["files"]
 				if file.include? "sha"
 					sha_file_path = "#{@course_name}/SHA/#{file["sha"]}"
 				elsif file.include? "sha1"
@@ -145,6 +170,41 @@ class CourseExtractor
 				Extract_and_Save_File(sub_repo_fullname, "#{file["filename"]}", "#{course_sub_repo}", sha_file_path)
 			end
 		end
+	end
+
+
+	def Get_Sub_Index(repo_fullname, subs)
+
+		file = Get_File(repo_fullname, ".anacapa/submission.json")
+
+		if file != nil
+
+			file_contents = JSON.parse( Base64.decode64( file.content ) )
+
+			cur_id = file_contents["id"]
+
+			index = 0
+
+			for sub in subs
+				if cur_id == sub["id"]
+					break
+				end
+				index += 1 
+			end
+
+			if subs[index] == subs[-1]
+				return index
+			else
+				return index + 1
+			end
+
+		else
+			puts "FILE = NIL"
+
+			return 0;
+
+		end
+
 	end
 
 
