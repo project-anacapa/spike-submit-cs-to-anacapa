@@ -36,9 +36,6 @@ class CourseExtractor
 			return
 		end
 
-		# proj_num = 0
-
-
 
 		for project in old_course_spec["projects"]
 
@@ -56,20 +53,17 @@ class CourseExtractor
 				Update_Proj_Spec(proj_repo_fullname, Modify_Spec(proj_repo_fullname, project) )
 			end
 
-
 			proj_id = project["id"]
 
 			if @add_submissions
 				Add_Student_Submissions(proj_id, lab_name)
 			end
 
-			# proj_num += 1
 			puts " "
 		end
 	end
 
 
-#  proj_id is the key for the hash given the old {course_name}.json file...
 	def Add_Student_Submissions(proj_id, lab_name)
 
 		course_sub_repo = "#{@course_name}_submissions"
