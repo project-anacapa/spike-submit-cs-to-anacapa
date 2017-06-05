@@ -3,7 +3,9 @@ SPIKE of converting submit.cs data into github organization and repos formatted 
 
 ## How to Run:
 
-**NOTE:** Before running make sure to create an organization on github for the the destination of the course data and make clholoien an owner.
+**NOTE:** Before running make sure to:
+* create an organization on github for the the destination of the course data
+* you must have, in your .env.sh, a github access token for one of the owners of that organization that has repo access.
 
 - Clone repository
 - Run either:
